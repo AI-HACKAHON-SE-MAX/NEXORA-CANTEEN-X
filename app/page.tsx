@@ -1,5 +1,5 @@
-import { StudentMenu } from "@/components/StudentMenu";
+import { StudentStorefront } from "@/components/StudentStorefront";
 
 export default function Home() {
-  return <StudentMenu />;
+  return <StudentStorefront />;
 }

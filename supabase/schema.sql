@@ -21,6 +21,7 @@ create table if not exists public.orders (
   status text not null default 'received'
     check (status in ('received', 'preparing', 'ready', 'picked_up', 'cancelled', 'expired')),
   total_price integer not null check (total_price > 0),
+  discount_amount integer not null default 0 check (discount_amount >= 0),
   estimated_minutes integer not null check (estimated_minutes between 1 and 60),
   estimated_ready_at timestamptz not null,
   idempotency_key uuid not null unique,
@@ -32,6 +33,7 @@ create table if not exists public.orders (
   picked_up_at timestamptz,
   constraint orders_token_order_day_unique unique (token, order_day)
 );
+alter table public.orders add column if not exists discount_amount integer not null default 0 check (discount_amount >= 0);
 
 create table if not exists public.order_items (
   id uuid primary key default gen_random_uuid(),
@@ -40,6 +42,37 @@ create table if not exists public.order_items (
   item_name text not null,
   quantity integer not null check (quantity between 1 and 10),
   unit_price integer not null check (unit_price > 0)
+);
+
+create table if not exists public.student_accounts (
+  id uuid primary key default gen_random_uuid(),
+  university_id_hash text not null unique check (university_id_hash ~ '^[0-9a-f]{64}$'),
+  email text not null unique check (char_length(email) between 3 and 254),
+  customer_name text not null check (char_length(customer_name) between 2 and 60),
+  email_verified_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.student_devices (
+  id uuid primary key default gen_random_uuid(),
+  student_account_id uuid not null references public.student_accounts(id) on delete cascade,
+  device_token_hash text not null unique check (device_token_hash ~ '^[0-9a-f]{64}$'),
+  created_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now(),
+  expires_at timestamptz not null
+);
+
+create table if not exists public.student_email_otps (
+  id uuid primary key default gen_random_uuid(),
+  university_id_hash text not null check (university_id_hash ~ '^[0-9a-f]{64}$'),
+  email text not null check (char_length(email) between 3 and 254),
+  customer_name text not null check (char_length(customer_name) between 2 and 60),
+  otp_hash text not null check (otp_hash ~ '^[0-9a-f]{64}$'),
+  attempts integer not null default 0 check (attempts between 0 and 5),
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  consumed_at timestamptz
 );
 
 alter table public.order_items add column if not exists item_name text;
@@ -70,12 +103,17 @@ alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 alter table public.token_counters enable row level security;
 alter table public.rate_limits enable row level security;
+alter table public.student_accounts enable row level security;
+alter table public.student_devices enable row level security;
+alter table public.student_email_otps enable row level security;
 
 grant usage on schema public to service_role;
 revoke all on table public.menu_items, public.orders, public.order_items,
-  public.token_counters, public.rate_limits from public, anon, authenticated;
+  public.token_counters, public.rate_limits, public.student_accounts,
+  public.student_devices, public.student_email_otps from public, anon, authenticated;
 grant all on table public.menu_items, public.orders, public.order_items,
-  public.token_counters, public.rate_limits to service_role;
+  public.token_counters, public.rate_limits, public.student_accounts,
+  public.student_devices, public.student_email_otps to service_role;
 
 create or replace function public.next_token(p_day date)
 returns text
@@ -120,6 +158,7 @@ returns table (
   token text,
   status text,
   total_price integer,
+  discount_amount integer,
   estimated_minutes integer,
   estimated_ready_at timestamptz,
   created_at timestamptz,
@@ -134,6 +173,8 @@ declare
   v_total_quantity integer;
   v_found_count integer;
   v_total_price integer;
+  v_discount integer := 0;
+  v_deal_quantity integer := 0;
   v_token text;
   v_order_id uuid;
 begin
@@ -215,14 +256,28 @@ begin
     raise exception using errcode = 'P0001', message = 'item_unavailable';
   end if;
 
+  -- The Study Break combo is one samosa plus one chai for PKR 20 off.
+  select least(
+    coalesce((select (item.value ->> 'quantity')::integer from jsonb_array_elements(p_items) as item(value)
+      where item.value ->> 'menuItemId' = '10000000-0000-4000-8000-000000000001'), 0),
+    coalesce((select (item.value ->> 'quantity')::integer from jsonb_array_elements(p_items) as item(value)
+      where item.value ->> 'menuItemId' = '10000000-0000-4000-8000-000000000005'), 0)
+  ) into v_deal_quantity;
+  v_discount := v_deal_quantity * 20;
+  v_total_price := v_total_price - v_discount;
+  if v_total_price <= 0 then
+    raise exception using errcode = 'P0001', message = 'validation_error';
+  end if;
+
   v_token := public.next_token(p_order_day);
 
   insert into public.orders (
     token, order_day, order_key_hash, university_id_hash, customer_name,
+    discount_amount,
     status, total_price, estimated_minutes, estimated_ready_at, idempotency_key
   ) values (
     v_token, p_order_day, p_order_key_hash, p_university_id_hash, p_customer_name,
-    'received', v_total_price, p_estimated_minutes, p_estimated_ready_at, p_idempotency_key
+    v_discount, 'received', v_total_price, p_estimated_minutes, p_estimated_ready_at, p_idempotency_key
   ) returning orders.id into v_order_id;
 
   insert into public.order_items (order_id, menu_item_id, item_name, quantity, unit_price)
@@ -231,7 +286,7 @@ begin
   join public.menu_items m on m.id = (item.value ->> 'menuItemId')::uuid;
 
   return query
-  select o.id, o.token, o.status, o.total_price, o.estimated_minutes,
+  select o.id, o.token, o.status, o.total_price, o.discount_amount, o.estimated_minutes,
          o.estimated_ready_at, o.created_at,
          coalesce((
            select jsonb_agg(jsonb_build_object('name', oi.item_name, 'quantity', oi.quantity) order by oi.id)

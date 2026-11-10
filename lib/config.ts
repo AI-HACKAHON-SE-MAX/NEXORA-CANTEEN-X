@@ -10,6 +10,8 @@ export type ServerEnv = {
   STAFF_PIN_HASH: string;
   SESSION_SECRET: string;
   GEMINI_API_KEY?: string;
+  RESEND_API_KEY?: string;
+  STUDENT_OTP_FROM?: string;
 };
 
 const requiredEnvNames = [
@@ -46,5 +48,7 @@ export function getServerEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv
     STAFF_PIN_HASH: source.STAFF_PIN_HASH!,
     SESSION_SECRET: source.SESSION_SECRET!,
     GEMINI_API_KEY: source.GEMINI_API_KEY?.trim() || undefined,
+    RESEND_API_KEY: source.RESEND_API_KEY?.trim() || undefined,
+    STUDENT_OTP_FROM: source.STUDENT_OTP_FROM?.trim() || undefined,
   };
 }

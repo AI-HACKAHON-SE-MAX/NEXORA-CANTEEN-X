@@ -14,7 +14,8 @@ export function hashOrderKey(orderKey: string): string {
 }
 
 export function hmacUniversityId(universityId: string, secret: string): string {
-  return createHmac("sha256", secret).update(universityId.trim().toUpperCase(), "utf8").digest("hex");
+  const canonicalId = universityId.trim().toUpperCase().replace(/^CIIT\//, "").replace(/\/ISB$/, "");
+  return createHmac("sha256", secret).update(canonicalId, "utf8").digest("hex");
 }
 
 export function safeEqualHex(leftHex: string, rightHex: string): boolean {

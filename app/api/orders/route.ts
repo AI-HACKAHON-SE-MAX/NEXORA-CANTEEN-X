@@ -1,10 +1,10 @@
 import { calibrationFactor, estimateReadyTime, type EstimateQueueOrder } from "@/lib/estimator";
 import { ORDER_RATE, CALIBRATION_WINDOW_MINUTES } from "@/lib/config-values";
-import { getServerEnv } from "@/lib/config";
 import { AppError, respond } from "@/lib/errors";
 import { createOrderTransaction, getMenuItemsByIds, loadActiveOrders, loadCalibrationOrders, sweepExpiredOrders } from "@/lib/db/orders";
-import { randomOrderKey, hashOrderKey, hmacUniversityId } from "@/lib/crypto";
+import { randomOrderKey, hashOrderKey } from "@/lib/crypto";
 import { checkRateLimit, getClientIp } from "@/lib/ratelimit";
+import { getStudentFromRequest } from "@/lib/student-auth";
 import { readJson } from "@/lib/request";
 import { karachiDay } from "@/lib/time";
 import { createOrderSchema } from "@/lib/validation";
@@ -13,11 +13,12 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request): Promise<Response> {
   try {
+    const student = await getStudentFromRequest(request);
+    if (!student) throw new AppError("unauthorized");
     const body = createOrderSchema.safeParse(await readJson(request));
     if (!body.success) throw new AppError("validation_error");
 
-    const { ID_HASH_SECRET } = getServerEnv();
-    const universityIdHash = hmacUniversityId(body.data.universityId, ID_HASH_SECRET);
+    const universityIdHash = student.university_id_hash;
     const ipLimit = await checkRateLimit("order-ip", getClientIp(request), ORDER_RATE.windowSeconds, ORDER_RATE.requests);
     if (!ipLimit.allowed) throw new AppError("rate_limited", { retryAfterSeconds: ipLimit.retryAfter });
     const idLimit = await checkRateLimit("order-id", universityIdHash, ORDER_RATE.windowSeconds, ORDER_RATE.perId);
@@ -68,7 +69,7 @@ export async function POST(request: Request): Promise<Response> {
       orderDay: karachiDay(now),
       orderKeyHash: hashOrderKey(orderKey),
       universityIdHash,
-      customerName: body.data.customerName,
+      customerName: student.customer_name,
       idempotencyKey: body.data.idempotencyKey,
       estimatedMinutes: estimate.minutes,
       estimatedReadyAt,
@@ -81,6 +82,7 @@ export async function POST(request: Request): Promise<Response> {
       status: created.status,
       items: created.items,
       total: created.total_price,
+      discount: created.discount_amount,
       estimatedMinutes: created.estimated_minutes,
       estimatedReadyAt: created.estimated_ready_at,
       serverTime: now.toISOString(),

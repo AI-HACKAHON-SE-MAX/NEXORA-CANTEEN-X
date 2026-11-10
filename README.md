@@ -7,14 +7,14 @@ CanteenX lets students order from the campus canteen before they arrive, then tr
 ## Current build status
 
 - The Next.js app, order and staff API routes, Supabase schema/seed scripts, and mobile-first student and kitchen screens are in the repository.
-- **Deployment:** not configured yet. There is no live URL at this point.
+- **Deployment:** the app is hosted on Vercel; production student email sign-in requires the Supabase auth tables and Resend sender settings below.
 - **Verified here:** `npm run build` and `npm run security:check` pass.
 - **Not yet verified:** applying the Supabase SQL, live database flows, phone/browser manual QA, and automated unit/API tests.
 
 ## Judge quick start
 
-1. Open the deployed URL after the team configures Supabase and Vercel. (No live URL is available yet.)
-2. Add a menu item to the cart, then check out with dummy University ID/name values.
+1. Open the deployed URL after applying the updated `supabase/schema.sql` and setting `RESEND_API_KEY` plus `STUDENT_OTP_FROM` in Vercel.
+2. Add a menu item, sign in with a CUI-style registration number and an email inbox you can access, then enter the emailed code.
 3. Show the pickup token on `/order`; in another browser, sign in at `/staff-login` and move the order through the kitchen queue.
 
 ## Run locally
@@ -27,14 +27,14 @@ CanteenX lets students order from the campus canteen before they arrive, then tr
 ### Setup
 
 1. Install dependencies with `npm install`.
-2. Copy `.env.example` to `.env.local` and fill in the server environment values.
-3. Apply `supabase/schema.sql`, then `supabase/seed.sql`, in the Supabase SQL editor.
+2. Copy `.env.example` to `.env.local` and fill in the server environment values, including a Resend API key and verified sender address for student OTP email.
+3. Apply the current `supabase/schema.sql`, then `supabase/seed.sql`, in the Supabase SQL editor. Reapply the schema before deploying this account-auth change.
 4. Run `npm run make:pin-hash` in an interactive terminal to create the staff PIN salt/hash. The PIN is entered without echo and is not printed.
 5. Start the app with `npm run dev` and open `http://localhost:3000`.
 
 ### Environment variable names
 
-`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ID_HASH_SECRET`, `STAFF_PIN_SALT`, `STAFF_PIN_HASH`, `SESSION_SECRET`, and optional `GEMINI_API_KEY`. Keep values in `.env.local` or the deployment provider’s server-side settings. Never add them to source control.
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ID_HASH_SECRET`, `STAFF_PIN_SALT`, `STAFF_PIN_HASH`, `SESSION_SECRET`, `RESEND_API_KEY`, and `STUDENT_OTP_FROM`; `GEMINI_API_KEY` is optional. Keep values in `.env.local` or the deployment provider’s server-side settings. Never add them to source control.
 
 ### Useful commands
 
@@ -60,10 +60,11 @@ Automated tests have not been added yet. Do not treat the successful build as pr
 2. Every application table has RLS enabled, no policies, and browser-role privileges revoked. Only `service_role` receives table/function access.
 3. Pickup tokens are labels only. Order reads/cancellation require a UUID plus the owner’s key in `x-order-key`.
 4. Each order key has 256 bits of randomness; only its SHA-256 hash is stored. Invalid owner checks share the same 404 response.
-5. University IDs are normalized and HMAC-SHA256 hashed. The customer name is retained for the order and is not sent to staff/admin responses.
-6. The staff PIN is scrypt-verified on the server with a salt. Staff sessions are signed HS256 JWTs in HttpOnly, SameSite=Strict cookies; every staff API handler checks the session.
-7. The server validates input, reads menu prices itself, and creates an order with an atomic database function. State updates are conditional on the expected current status.
-8. Errors and logs do not include request bodies, personal data, PINs, keys, hashes, or stack traces. `.env.local` is ignored by Git.
+5. CUI registration number format is checked, names accept letters and spaces, and email ownership is confirmed by a one-time code. University IDs are normalized and HMAC-SHA256 hashed. Names are not sent to staff/admin responses.
+6. Verified students receive a random, HttpOnly device cookie for 180 days. Each device must verify by email once; the database stores only the device-token hash. Emails and registrations are uniquely bound after verification.
+7. The staff PIN is scrypt-verified on the server with a salt. Staff sessions are signed HS256 JWTs in HttpOnly, SameSite=Strict cookies; every staff API handler checks the session.
+8. The server validates input, reads menu prices itself, and creates an order with an atomic database function. The Study Break combo discount is calculated and applied in the database, not trusted from the browser. State updates are conditional on the expected current status.
+9. Errors and logs do not include request bodies, personal data, PINs, keys, hashes, or stack traces. `.env.local` is ignored by Git.
 
 ## Estimator
 
@@ -71,10 +72,10 @@ For each cart line, preparation work is `base + (quantity - 1) × base × 0.5`, 
 
 ## Known limitations
 
-- University IDs are not verified because students do not log in.
+- The CUI registration-number pattern and email OTP verify format and inbox access, but do not prove that the inbox belongs to the entered registration number. Authoritative identity binding needs CUI SSO or a university roster integration.
 - If browser storage is cleared or the order key is lost, the order cannot be tracked on that device; staff can still serve by pickup token.
 - IP rate limits may affect multiple students behind a shared campus network.
-- Supabase must be configured and the SQL applied before ordering works. Deployment, real-device checks, and automated tests remain outstanding.
+- Supabase must be configured and the current SQL applied before student login and ordering work. Resend must have a verified sender. Real-device checks and automated tests remain outstanding.
 
 ## Documentation
 

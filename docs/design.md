@@ -4,9 +4,10 @@
 
 ```mermaid
 flowchart LR
-  Student[Student browser] -->|JSON API| Next[Next.js pages and route handlers]
+  Student[Student browser] -->|JSON API + HttpOnly device cookie| Next[Next.js pages and route handlers]
   Staff[Staff browser] -->|HttpOnly session + JSON API| Next
   Next -->|service role, server only| DB[(Supabase Postgres)]
+  Next -->|OTP email, server-side key| Mail[Resend]
   DB --> Menu[Menu, orders, order items]
   DB --> Limits[Rate limits and token counters]
 ```
@@ -17,7 +18,7 @@ The browser calls Next.js routes only. Route handlers validate requests, apply r
 
 | Component | Responsibility | Technology |
 |---|---|---|
-| Student menu and order tracker | Menu, cart, checkout, local order key storage, visible-tab polling | React client components, localStorage |
+| Student menu and order tracker | Menu, photo cards, cart, dark mode, email OTP, device cookie, local order-key storage, visible-tab polling | React client components, localStorage |
 | Kitchen and admin screens | Staff queue, stock toggles, daily metrics | React client components |
 | Route handlers | Validation, rate limiting, owner/session checks, serialization | Next.js App Router, TypeScript, Zod |
 | Shared domain code | HMAC/hash/session helpers, estimator, time, status rules | Node crypto, jose, pure TypeScript |
@@ -30,8 +31,11 @@ The browser calls Next.js routes only. Route handlers validate requests, apply r
 - `order_items`: order and menu references, snapshot item name, quantity, snapshot unit price.
 - `token_counters`: atomic daily token sequence.
 - `rate_limits`: atomic request windows. Scope prefixes are visible for lockout reset; identities remain HMACed.
+- `student_accounts`: unique HMACed registration ID binding, verified email and pickup name.
+- `student_devices`: SHA-256 hashes of per-device random tokens; successful verification remembers that browser for 180 days.
+- `student_email_otps`: short-lived HMACed one-time codes with bounded attempts.
 
-All five tables enable RLS and have no policies. Browser roles have no table/function privileges. The SQL has not yet been applied to a live Supabase project.
+All application tables enable RLS and have no policies. Browser roles have no table/function privileges. Apply the current `supabase/schema.sql` before deploying the student-auth routes. The first verified email is bound to an ID by unique constraints, but an authoritative CUI identity check still requires SSO or a campus roster.
 
 ## Status flow
 

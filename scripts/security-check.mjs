@@ -6,7 +6,7 @@ const root = process.cwd();
 const ignored = new Set([".git", ".next", "node_modules", "coverage"]);
 const sourceExtensions = new Set([".js", ".jsx", ".mjs", ".ts", ".tsx", ".json"]);
 const publicPrefix = ["NEXT", "PUBLIC"].join("_") + "_";
-const sensitiveSuffixes = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "ID_HASH_SECRET", "STAFF_PIN_HASH", "SESSION_SECRET"];
+const sensitiveSuffixes = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "ID_HASH_SECRET", "STAFF_PIN_HASH", "SESSION_SECRET", "RESEND_API_KEY"];
 const forbidden = sensitiveSuffixes.map((suffix) => `${publicPrefix}${suffix}`);
 const hits = [];
 

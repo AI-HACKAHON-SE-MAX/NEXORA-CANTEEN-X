@@ -30,6 +30,7 @@ export type DbOrder = {
   customer_name: string;
   status: "received" | "preparing" | "ready" | "picked_up" | "cancelled" | "expired";
   total_price: number;
+  discount_amount: number;
   estimated_minutes: number;
   estimated_ready_at: string;
   idempotency_key: string;
@@ -129,7 +130,7 @@ export async function createOrderTransaction(input: {
   estimatedMinutes: number;
   estimatedReadyAt: string;
   items: Array<{ menuItemId: string; quantity: number }>;
-}): Promise<Pick<DbOrder, "id" | "token" | "status" | "total_price" | "estimated_minutes" | "estimated_ready_at" | "created_at"> & {
+}): Promise<Pick<DbOrder, "id" | "token" | "status" | "total_price" | "discount_amount" | "estimated_minutes" | "estimated_ready_at" | "created_at"> & {
   items: Array<{ name: string; quantity: number }>;
 }> {
   const supabase = createSupabaseAdmin();
@@ -154,7 +155,7 @@ export async function createOrderTransaction(input: {
   }
   const row = Array.isArray(data) ? data[0] : data;
   if (!row || !Array.isArray(row.items)) throw new AppError("unavailable");
-  return row as Pick<DbOrder, "id" | "token" | "status" | "total_price" | "estimated_minutes" | "estimated_ready_at" | "created_at"> & {
+  return row as Pick<DbOrder, "id" | "token" | "status" | "total_price" | "discount_amount" | "estimated_minutes" | "estimated_ready_at" | "created_at"> & {
     items: Array<{ name: string; quantity: number }>;
   };
 }

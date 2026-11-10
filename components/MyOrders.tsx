@@ -7,6 +7,7 @@ import { CanteenHeader } from "@/components/CanteenHeader";
 type SavedOrder = { id: string; key: string; token: string; createdAt: string; status?: string };
 type OrderDetails = {
   token: string;
+  isDemo?: boolean;
   status: "received" | "preparing" | "ready" | "picked_up" | "cancelled" | "expired";
   items: Array<{ name: string; quantity: number }>;
   total: number;
@@ -211,7 +212,7 @@ function OrderCard({ order }: { order: SavedOrder }) {
   return (
     <article className={`cx-order-card${status === "ready" ? " is-ready" : ""}`}>
       <div className="cx-order-card-head">
-        <div><p className="cx-order-caption">Pickup token</p><p className="cx-order-token">{order.token}</p><p className="cx-order-status" aria-live="polite"><i className={`cx-status-dot ${status ?? "pending"}`} />{status ? labels[status] : "Checking status…"}</p></div>
+        <div><p className="cx-order-caption">Pickup token {details?.isDemo && <span className="cx-demo-order-tag">DEMO ORDER</span>}</p><p className="cx-order-token">{order.token}</p><p className="cx-order-status" aria-live="polite"><i className={`cx-status-dot ${status ?? "pending"}`} />{status ? labels[status] : "Checking status…"}</p></div>
         {details && <div className="cx-order-eta"><p>Ready-time estimate</p><strong>{status === "ready" ? "Ready now" : terminal.has(status ?? "") ? "—" : isLate ? "Any moment now" : (details.estimatedMinutes ?? 0) >= 60 ? "60+ minutes" : `About ${details.estimatedMinutes} min`}</strong>{remainingMs !== null && remainingMs > 0 && remainingMs < 60 * 60_000 && status !== "ready" && !terminal.has(status ?? "") && <span>~{Math.ceil(remainingMs / 60_000)} min remaining</span>}</div>}
       </div>
 

@@ -9,6 +9,7 @@ type QueueOrder = {
   id: string;
   token: string;
   status: "received" | "preparing" | "ready";
+  isDemo: boolean;
   items: Array<{ name: string; quantity: number }>;
   createdAt: string;
   estimatedReadyAt: string;
@@ -178,7 +179,7 @@ export function KitchenDashboard() {
             {loading ? <div className="cx-loading-panel" role="status"><span className="cx-spinner" />Loading the kitchen queue…</div> : orders.length === 0 ? <div className="cx-queue-empty"><span className="cx-empty-icon" aria-hidden="true">✓</span><h3>All caught up.</h3><p>New student orders will appear here automatically.</p></div> : (
               <div className="cx-queue-list">
                 {orders.map((order) => <article key={order.id} className={`cx-kitchen-order cx-kitchen-${order.status}`}>
-                  <div className="cx-kitchen-order-head"><div><p className="cx-order-caption">Pickup token</p><p className="cx-kitchen-token">{order.token}</p></div><div className="cx-kitchen-status-block"><span className={`cx-status-badge ${order.status}`}>{statusLabels[order.status]}</span><small>Received {time(order.createdAt)}</small></div></div>
+                  <div className="cx-kitchen-order-head"><div><p className="cx-order-caption">Pickup token {order.isDemo && <span className="cx-demo-order-tag">DEMO</span>}</p><p className="cx-kitchen-token">{order.token}</p></div><div className="cx-kitchen-status-block"><span className={`cx-status-badge ${order.status}`}>{statusLabels[order.status]}</span><small>Received {time(order.createdAt)}</small></div></div>
                   <div className="cx-kitchen-items"><p>Order items</p><ul>{order.items.map((item, index) => <li key={`${item.name}-${index}`}><span>{item.quantity} ×</span><strong>{item.name}</strong></li>)}</ul></div>
                   <div className="cx-kitchen-order-bottom"><div className="cx-kitchen-estimate"><span>Estimated ready</span><strong>{time(order.estimatedReadyAt)}</strong></div><div className="cx-kitchen-actions">
                     {order.status === "received" && <button disabled={busy !== null} onClick={() => void changeStatus(order, "preparing")} className="cx-action-button primary">Start preparing <ArrowIcon /></button>}

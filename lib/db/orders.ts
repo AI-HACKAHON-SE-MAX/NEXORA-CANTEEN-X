@@ -29,6 +29,7 @@ export type DbOrder = {
   university_id_hash: string;
   customer_name: string;
   status: "received" | "preparing" | "ready" | "picked_up" | "cancelled" | "expired";
+  is_demo: boolean;
   total_price: number;
   discount_amount: number;
   estimated_minutes: number;
@@ -85,7 +86,7 @@ export async function loadActiveOrders(): Promise<QueueDbOrder[]> {
 export async function getOrderById(id: string): Promise<DbOrder | null> {
   const supabase = createSupabaseAdmin();
   const { data, error } = await supabase.from("orders")
-    .select("id,token,order_day,order_key_hash,university_id_hash,customer_name,status,total_price,estimated_minutes,estimated_ready_at,idempotency_key,was_stepped_back,created_at,updated_at,preparing_at,ready_at,picked_up_at,order_items(item_name,quantity,unit_price,menu_items(id,name,prep_minutes))")
+    .select("id,token,order_day,order_key_hash,university_id_hash,customer_name,status,is_demo,total_price,estimated_minutes,estimated_ready_at,idempotency_key,was_stepped_back,created_at,updated_at,preparing_at,ready_at,picked_up_at,order_items(item_name,quantity,unit_price,menu_items(id,name,prep_minutes))")
     .eq("id", id)
     .maybeSingle();
   if (error) throw new AppError("unavailable");
@@ -97,6 +98,7 @@ export async function loadCalibrationOrders(since: string): Promise<CalibrationD
   const { data, error } = await supabase.from("orders")
     .select("estimated_minutes,was_stepped_back,preparing_at,ready_at,picked_up_at")
     .eq("status", "picked_up")
+    .eq("is_demo", false)
     .eq("was_stepped_back", false)
     .gte("picked_up_at", since)
     .order("picked_up_at", { ascending: false })
@@ -129,6 +131,7 @@ export async function createOrderTransaction(input: {
   idempotencyKey: string;
   estimatedMinutes: number;
   estimatedReadyAt: string;
+  isDemo?: boolean;
   items: Array<{ menuItemId: string; quantity: number }>;
 }): Promise<Pick<DbOrder, "id" | "token" | "status" | "total_price" | "discount_amount" | "estimated_minutes" | "estimated_ready_at" | "created_at"> & {
   items: Array<{ name: string; quantity: number }>;
@@ -143,6 +146,7 @@ export async function createOrderTransaction(input: {
     p_estimated_minutes: input.estimatedMinutes,
     p_estimated_ready_at: input.estimatedReadyAt,
     p_items: input.items,
+    p_is_demo: input.isDemo ?? false,
   });
   if (error) {
     const message = error.message;

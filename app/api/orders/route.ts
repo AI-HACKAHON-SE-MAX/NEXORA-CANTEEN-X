@@ -5,6 +5,7 @@ import { createOrderTransaction, getMenuItemsByIds, loadActiveOrders, loadCalibr
 import { randomOrderKey, hashOrderKey } from "@/lib/crypto";
 import { checkRateLimit, getClientIp } from "@/lib/ratelimit";
 import { getStudentFromRequest } from "@/lib/student-auth";
+import { getDemoStudentFromRequest } from "@/lib/demo-student";
 import { readJson } from "@/lib/request";
 import { karachiDay } from "@/lib/time";
 import { createOrderSchema } from "@/lib/validation";
@@ -13,10 +14,12 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const student = await getStudentFromRequest(request);
-    if (!student) throw new AppError("unauthorized");
     const body = createOrderSchema.safeParse(await readJson(request));
     if (!body.success) throw new AppError("validation_error");
+    const student = body.data.demoMode
+      ? await getDemoStudentFromRequest(request)
+      : await getStudentFromRequest(request);
+    if (!student) throw new AppError("unauthorized");
 
     const universityIdHash = student.university_id_hash;
     const ipLimit = await checkRateLimit("order-ip", getClientIp(request), ORDER_RATE.windowSeconds, ORDER_RATE.requests);
@@ -73,6 +76,7 @@ export async function POST(request: Request): Promise<Response> {
       idempotencyKey: body.data.idempotencyKey,
       estimatedMinutes: estimate.minutes,
       estimatedReadyAt,
+      isDemo: body.data.demoMode,
       items: body.data.items,
     });
     return Response.json({

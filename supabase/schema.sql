@@ -22,6 +22,7 @@ create table if not exists public.orders (
     check (status in ('received', 'preparing', 'ready', 'picked_up', 'cancelled', 'expired')),
   total_price integer not null check (total_price > 0),
   discount_amount integer not null default 0 check (discount_amount >= 0),
+  is_demo boolean not null default false,
   estimated_minutes integer not null check (estimated_minutes between 1 and 60),
   estimated_ready_at timestamptz not null,
   idempotency_key uuid not null unique,
@@ -34,6 +35,7 @@ create table if not exists public.orders (
   constraint orders_token_order_day_unique unique (token, order_day)
 );
 alter table public.orders add column if not exists discount_amount integer not null default 0 check (discount_amount >= 0);
+alter table public.orders add column if not exists is_demo boolean not null default false;
 
 create table if not exists public.order_items (
   id uuid primary key default gen_random_uuid(),
@@ -299,6 +301,45 @@ exception
 end;
 $$;
 
+-- Optional demo flag preserves the original transactional behavior while marking
+-- temporary demo orders for the kitchen. The 8-argument function remains usable.
+create or replace function public.create_order_tx(
+  p_order_day date,
+  p_order_key_hash text,
+  p_university_id_hash text,
+  p_customer_name text,
+  p_idempotency_key uuid,
+  p_estimated_minutes integer,
+  p_estimated_ready_at timestamptz,
+  p_items jsonb,
+  p_is_demo boolean
+)
+returns table (
+  id uuid,
+  token text,
+  status text,
+  total_price integer,
+  discount_amount integer,
+  estimated_minutes integer,
+  estimated_ready_at timestamptz,
+  created_at timestamptz,
+  items jsonb
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  return query select * from public.create_order_tx(
+    p_order_day, p_order_key_hash, p_university_id_hash, p_customer_name,
+    p_idempotency_key, p_estimated_minutes, p_estimated_ready_at, p_items
+  );
+  if p_is_demo then
+    update public.orders set is_demo = true where idempotency_key = p_idempotency_key;
+  end if;
+end;
+$$;
+
 create or replace function public.rate_limit_hit(
   p_key text,
   p_window_seconds integer,
@@ -342,9 +383,13 @@ $$;
 revoke all on function public.next_token(date) from public, anon, authenticated;
 revoke all on function public.create_order_tx(date, text, text, text, uuid, integer, timestamptz, jsonb)
   from public, anon, authenticated;
+revoke all on function public.create_order_tx(date, text, text, text, uuid, integer, timestamptz, jsonb, boolean)
+  from public, anon, authenticated;
 revoke all on function public.rate_limit_hit(text, integer, integer) from public, anon, authenticated;
 grant execute on function public.next_token(date) to service_role;
 grant execute on function public.create_order_tx(date, text, text, text, uuid, integer, timestamptz, jsonb)
+  to service_role;
+grant execute on function public.create_order_tx(date, text, text, text, uuid, integer, timestamptz, jsonb, boolean)
   to service_role;
 grant execute on function public.rate_limit_hit(text, integer, integer) to service_role;
 

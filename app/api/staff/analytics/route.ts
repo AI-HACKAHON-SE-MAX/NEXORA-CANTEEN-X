@@ -12,6 +12,7 @@ type AnalyticsOrder = {
   created_at: string;
   ready_at: string | null;
   was_stepped_back: boolean;
+  is_demo: boolean;
   order_items: Array<{ item_name: string; quantity: number }>;
 };
 
@@ -20,7 +21,7 @@ export async function GET(request: Request): Promise<Response> {
     await requireStaff(request);
     const supabase = createSupabaseAdmin();
     const { data, error } = await supabase.from("orders")
-      .select("status,total_price,estimated_minutes,created_at,ready_at,was_stepped_back,order_items(item_name,quantity)")
+      .select("status,is_demo,total_price,estimated_minutes,created_at,ready_at,was_stepped_back,order_items(item_name,quantity)")
       .eq("order_day", karachiDay());
     if (error) throw new AppError("unavailable");
     const orders = (data ?? []) as unknown as AnalyticsOrder[];
@@ -29,11 +30,13 @@ export async function GET(request: Request): Promise<Response> {
     let completedCount = 0;
     let cancelledCount = 0;
     let expiredCount = 0;
+    let demoOrders = 0;
     let revenue = 0;
     const prepTimes: number[] = [];
     const estimateErrors: number[] = [];
 
     for (const order of orders) {
+      if (order.is_demo) { demoOrders += 1; continue; }
       ordersPerHour[karachiHour(new Date(order.created_at))].count += 1;
       if (order.status === "picked_up") {
         completedCount += 1;
@@ -61,7 +64,8 @@ export async function GET(request: Request): Promise<Response> {
       : null;
     return Response.json({
       day: karachiDay(),
-      ordersTotal: orders.length,
+      ordersTotal: orders.length - demoOrders,
+      demoOrders,
       completedCount,
       cancelledCount,
       expiredCount,

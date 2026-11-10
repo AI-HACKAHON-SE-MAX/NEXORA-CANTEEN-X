@@ -396,6 +396,7 @@ button:disabled { cursor: not-allowed; }
 .cx-kitchen-ready::before { background: linear-gradient(90deg, #4d9965, #93c99a); }
 .cx-kitchen-order-head { display: flex; align-items: start; justify-content: space-between; gap: 14px; }
 .cx-order-caption { margin: 0; color: var(--cx-muted); font-size: 8px; font-weight: 900; letter-spacing: 1.4px; text-transform: uppercase; }
+.cx-demo-order-tag { display: inline-flex; align-items: center; margin-left: 6px; padding: 3px 6px; border-radius: 5px; background: #fff0e6; color: #bd4c1c; font-size: 8px; font-weight: 900; letter-spacing: .6px; vertical-align: 1px; }
 .cx-kitchen-token { margin: 4px 0 0; color: var(--cx-ink); font-family: Georgia, serif; font-size: 31px; font-weight: 600; letter-spacing: .3px; }
 .cx-kitchen-status-block { display: grid; justify-items: end; gap: 7px; }
 .cx-kitchen-status-block small { color: var(--cx-muted); font-size: 9px; }
@@ -522,6 +523,12 @@ button:disabled { cursor: not-allowed; }
 .cx-login-demo > a { display: inline-flex; align-items: center; gap: 7px; color: var(--cx-orange-dark); font-size: 10px; font-weight: 900; text-decoration: none; }
 .cx-login-demo > a:hover { text-decoration: underline; }
 .cx-login-demo > small { color: var(--cx-muted); font-size: 8px; }
+.cx-demo-live-banner { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 16px; background: #1e4639; color: #f4f5e7; font-size: 10px; }
+.cx-demo-live-banner strong { color: #ffd3a6; letter-spacing: 1px; }
+.cx-demo-live-banner a { color: #fff; font-weight: 900; }
+.cx-demo-code { display: grid; justify-items: center; gap: 6px; padding: 15px; border: 1px solid #f4c19b; border-radius: 12px; background: #fff2e8; color: #79401f; }
+.cx-demo-code span { font-size: 8px; font-weight: 900; letter-spacing: 1.1px; }
+.cx-demo-code strong { color: #bc4f20; font-size: 27px; letter-spacing: 8px; }
 
 .cx-demo-shell { max-width: 1280px; margin: 0 auto; padding: 31px 28px 75px; }
 .cx-demo-hero { display: flex; align-items: center; justify-content: space-between; gap: 25px; min-height: 215px; padding: 34px 42px; overflow: hidden; border-radius: 24px; background: radial-gradient(circle at 80% 30%, #285b49, transparent 35%), linear-gradient(115deg, #163c32, #102c25); color: #fffaf0; box-shadow: var(--cx-shadow); }

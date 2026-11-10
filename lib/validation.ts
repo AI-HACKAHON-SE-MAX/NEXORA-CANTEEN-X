@@ -14,11 +14,13 @@ const orderLineSchema = z.object({
 const normalizedOrderSchema = z.object({
   items: z.array(orderLineSchema).min(1).max(MAX_LINES),
   idempotencyKey: z.string().uuid(),
+  demoMode: z.boolean().optional(),
 }).strict();
 
 const mergedOrderSchema = z.object({
   items: z.array(orderLineSchema).min(1).max(MAX_LINES),
   idempotencyKey: z.string().uuid(),
+  demoMode: z.boolean(),
 }).strict().refine(
   (order) => order.items.reduce((total, item) => total + item.quantity, 0) <= MAX_TOTAL_QTY,
   { message: "The total quantity is too high.", path: ["items"] },
@@ -32,6 +34,8 @@ export const createOrderSchema = normalizedOrderSchema
     }
     return {
       items: Array.from(merged, ([menuItemId, quantity]) => ({ menuItemId, quantity })),
+      idempotencyKey: order.idempotencyKey,
+      demoMode: order.demoMode ?? false,
     };
   })
   .pipe(mergedOrderSchema);

@@ -7,6 +7,7 @@ import { CanteenHeader } from "@/components/CanteenHeader";
 type Analytics = {
   day: string;
   ordersTotal: number;
+  demoOrders: number;
   completedCount: number;
   cancelledCount: number;
   expiredCount: number;
@@ -81,6 +82,7 @@ export function AdminDashboard() {
             <section className="cx-panel cx-service-panel">
               <div className="cx-panel-heading"><div><span className="cx-eyebrow">SERVICE CHECK</span><h2>Today’s operations</h2></div></div>
               <div className="cx-service-list">
+                <ServiceMetric label="Demo orders" value={String(data.demoOrders)} detail="Excluded from sales and wait-time metrics" />
                 <ServiceMetric label="Cancelled" value={String(data.cancelledCount)} detail="Customer or staff cancellations" />
                 <ServiceMetric label="Expired" value={String(data.expiredCount)} detail="Uncollected orders" />
                 <ServiceMetric label="Average prep" value={data.avgActualPrepMinutes === null ? "—" : `${data.avgActualPrepMinutes} min`} detail="Measured from live orders" />

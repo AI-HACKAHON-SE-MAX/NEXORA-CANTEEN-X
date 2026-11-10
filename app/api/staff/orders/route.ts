@@ -12,7 +12,7 @@ export async function GET(request: Request): Promise<Response> {
     const supabase = createSupabaseAdmin();
     const [rowsResult, countResult] = await Promise.all([
       supabase.from("orders")
-        .select("id,token,status,estimated_ready_at,created_at,order_items(item_name,quantity,unit_price,menu_items(id,name,prep_minutes))")
+        .select("id,token,status,is_demo,estimated_ready_at,created_at,order_items(item_name,quantity,unit_price,menu_items(id,name,prep_minutes))")
         .in("status", ["received", "preparing", "ready"])
         .order("created_at", { ascending: true })
         .limit(50),
@@ -24,6 +24,7 @@ export async function GET(request: Request): Promise<Response> {
       id: order.id,
       token: order.token,
       status: order.status,
+      isDemo: order.is_demo,
       items: publicOrderItems(order),
       createdAt: order.created_at,
       estimatedReadyAt: order.estimated_ready_at,

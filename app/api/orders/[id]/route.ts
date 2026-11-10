@@ -61,6 +61,7 @@ export async function GET(
     return Response.json({
       token: order.token,
       status: order.status,
+      isDemo: order.is_demo,
       items: publicOrderItems(order),
       total: order.total_price,
       estimatedMinutes,

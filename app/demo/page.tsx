@@ -1,5 +1,5 @@
-import { DemoExperience } from "@/components/DemoExperience";
+import { StudentStorefront } from "@/components/StudentStorefront";
 
 export default function DemoPage() {
-  return <DemoExperience />;
+  return <StudentStorefront demoMode />;
 }

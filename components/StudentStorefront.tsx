@@ -13,7 +13,7 @@ type MenuItem = {
   isAvailable: boolean;
 };
 type Cart = Record<string, number>;
-type Student = { name: string };
+type Student = { name: string; isDemo?: boolean };
 const CART_KEY = "cx_cart";
 const SAMOSA_ID = "10000000-0000-4000-8000-000000000001";
 const CHAI_ID = "10000000-0000-4000-8000-000000000005";
@@ -46,7 +46,7 @@ function Icon({ name, size = 20 }: { name: "cart" | "sun" | "moon" | "search" | 
   return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
 }
 
-export function StudentStorefront() {
+export function StudentStorefront({ demoMode = false }: { demoMode?: boolean } = {}) {
   const router = useRouter();
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<Cart>({});
@@ -61,6 +61,7 @@ export function StudentStorefront() {
   const [universityId, setUniversityId] = useState("");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
+  const [demoCode, setDemoCode] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [authNotice, setAuthNotice] = useState("");
   const [pending, setPending] = useState(false);
@@ -100,9 +101,9 @@ export function StudentStorefront() {
     } catch { /* Keep the storefront usable when browser storage is blocked. */ }
     setCartLoaded(true);
     void loadMenu();
-    void fetch("/api/student/session", { cache: "no-store" }).then(async (response) => {
+    void fetch(demoMode ? "/api/demo/auth/verify" : "/api/student/session", { cache: "no-store" }).then(async (response) => {
       if (!response.ok) return;
-      const body = await response.json() as { authenticated?: boolean; student?: Student };
+      const body = await response.json() as { authenticated?: boolean; student?: Student; demo?: boolean };
       if (body.authenticated && body.student) setStudent(body.student);
     }).catch(() => undefined);
     const online = () => setOffline(false);
@@ -111,7 +112,7 @@ export function StudentStorefront() {
     window.addEventListener("offline", offlineEvent);
     setOffline(!navigator.onLine);
     return () => { window.removeEventListener("online", online); window.removeEventListener("offline", offlineEvent); };
-  }, []);
+  }, [demoMode]);
 
   useEffect(() => {
     if (!cartLoaded) return;
@@ -170,14 +171,15 @@ export function StudentStorefront() {
     event.preventDefault();
     setAuthBusy(true); setAuthNotice("");
     try {
-      const response = await fetch("/api/student/auth/start", {
+      const response = await fetch(demoMode ? "/api/demo/auth/start" : "/api/student/auth/start", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ universityId, customerName: name, email }),
       });
-      const body = await response.json() as { message?: string; error?: { code?: string } };
+      const body = await response.json() as { message?: string; demoCode?: string; error?: { code?: string } };
       if (!response.ok) throw new Error(body.error?.code ?? "unavailable");
+      if (demoMode && body.demoCode) setDemoCode(body.demoCode);
       setAuthStep("code");
-      setAuthNotice(body.message ?? "Check your email for the six-digit code.");
+      setAuthNotice(demoMode ? "Temporary demo code generated on this server. No email was sent." : body.message ?? "Check your email for the six-digit code.");
     } catch (error) {
       setAuthNotice(error instanceof Error && error.message === "validation_error"
         ? "Check the CUI ID format, your name, and email address."
@@ -189,7 +191,7 @@ export function StudentStorefront() {
     event.preventDefault();
     setAuthBusy(true); setAuthNotice("");
     try {
-      const response = await fetch("/api/student/auth/verify", {
+      const response = await fetch(demoMode ? "/api/demo/auth/verify" : "/api/student/auth/verify", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ universityId, email, code: otp }),
       });
@@ -197,7 +199,7 @@ export function StudentStorefront() {
       if (!response.ok || !body.student) throw new Error(body.error?.code ?? "unauthorized");
       setStudent(body.student);
       setName(body.student.name);
-      setAuthNotice("Email verified. This device is remembered for 180 days.");
+      setAuthNotice(demoMode ? "Demo sign-in complete. Demo orders enter the kitchen queue with a DEMO label." : "Email verified. This device is remembered for 180 days.");
       attemptRef.current = null;
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
@@ -208,13 +210,14 @@ export function StudentStorefront() {
   async function resendCode() {
     setAuthBusy(true); setAuthNotice("");
     try {
-      const response = await fetch("/api/student/auth/start", {
+      const response = await fetch(demoMode ? "/api/demo/auth/start" : "/api/student/auth/start", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ universityId, customerName: name, email }),
       });
-      const body = await response.json() as { message?: string; error?: { code?: string } };
+      const body = await response.json() as { message?: string; demoCode?: string; error?: { code?: string } };
       if (!response.ok) throw new Error(body.error?.code ?? "unavailable");
-      setAuthNotice(body.message ?? "A fresh code has been sent.");
+      if (demoMode && body.demoCode) setDemoCode(body.demoCode);
+      setAuthNotice(demoMode ? "A fresh temporary demo code is ready below." : body.message ?? "A fresh code has been sent.");
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
       setAuthNotice(code === "rate_limited" ? "Too many codes were requested. Wait a little before requesting another." : "We couldn't send another code right now.");
@@ -222,7 +225,7 @@ export function StudentStorefront() {
   }
 
   async function signOut() {
-    try { await fetch("/api/student/auth/logout", { method: "POST" }); } catch { /* The cookie will expire if the network is unavailable. */ }
+    try { await fetch(demoMode ? "/api/student/auth/logout?mode=demo" : "/api/student/auth/logout", { method: "POST" }); } catch { /* The cookie will expire if the network is unavailable. */ }
     setStudent(null); setAuthStep("details"); setOtp(""); attemptRef.current = null;
   }
 
@@ -246,7 +249,7 @@ export function StudentStorefront() {
       if (!attempt || attempt.fingerprint !== fingerprint) { attempt = { fingerprint, key: crypto.randomUUID() }; attemptRef.current = attempt; }
       const response = await fetch("/api/orders", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: Object.entries(cart).map(([menuItemId, count]) => ({ menuItemId, quantity: count })), idempotencyKey: attempt.key }),
+        body: JSON.stringify({ items: Object.entries(cart).map(([menuItemId, count]) => ({ menuItemId, quantity: count })), idempotencyKey: attempt.key, ...(demoMode ? { demoMode: true } : {}) }),
       });
       const body = await response.json() as { orderId?: string; orderKey?: string; token?: string; createdAt?: string; error?: { code?: string } };
       if (!response.ok) {
@@ -277,6 +280,7 @@ export function StudentStorefront() {
 
   return (
     <main className="cx-page" data-theme={theme}>
+      {demoMode && <div className="cx-demo-live-banner" role="status"><strong>LIVE SYSTEM DEMO</strong><span>Temporary code shown at sign-in. Orders enter the real kitchen queue with a DEMO label.</span><a href="/">Exit demo</a></div>}
       {offline && <div className="cx-offline" role="status">You’re offline. Your bag is saved on this device.</div>}
       <header className="cx-header">
         <div className="cx-header-inner">
@@ -284,7 +288,7 @@ export function StudentStorefront() {
           <nav className="cx-nav" aria-label="Main navigation">
             <a className="cx-nav-link" href="#menu">Menu</a><a className="cx-nav-link" href="/order">My orders</a><a className="cx-nav-link" href="/demo">Demo</a>
             <button className="cx-icon-button" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}><Icon name={theme === "light" ? "moon" : "sun"}/></button>
-            {student ? <button className="cx-profile" onClick={() => void signOut()} title="Sign out">{student.name.split(" ")[0]} <span>· Sign out</span></button> : <button className="cx-signin" onClick={() => { setCheckoutOpen(true); setAuthStep("details"); }}>Sign in</button>}
+            {student ? <button className="cx-profile" onClick={() => void signOut()} title="Sign out">{student.isDemo ? "Demo · " : ""}{student.name.split(" ")[0]} <span>· Sign out</span></button> : <button className="cx-signin" onClick={() => { setCheckoutOpen(true); setAuthStep("details"); }}>Sign in</button>}
             <button className="cx-cart-button" onClick={() => setDrawerOpen(true)} aria-label={`Open bag, ${quantity} items`}><Icon name="cart"/><span>Bag</span><b aria-live="polite">{quantity}</b></button>
           </nav>
         </div>
@@ -340,26 +344,27 @@ export function StudentStorefront() {
       </aside></div>}
 
       {checkoutOpen && <div className="cx-overlay cx-checkout-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget && !pending && !authBusy) setCheckoutOpen(false); }}><section className="cx-checkout" aria-labelledby="checkout-title">
-        <div className="cx-checkout-head"><div><span className="cx-eyebrow">ONE LAST STEP</span><h2 id="checkout-title">{student ? "Ready for pickup?" : "Verify your student email"}</h2><p>{student ? "Your campus order, made easy." : "We’ll send a code once. This device stays signed in for 180 days."}</p></div><button className="cx-close" disabled={pending || authBusy} onClick={() => setCheckoutOpen(false)} aria-label="Close checkout">×</button></div>
+        <div className="cx-checkout-head"><div><span className="cx-eyebrow">{demoMode ? "TEMPORARY LIVE DEMO" : "ONE LAST STEP"}</span><h2 id="checkout-title">{student ? "Ready for pickup?" : demoMode ? "Demo student sign-in" : "Verify your student email"}</h2><p>{student ? "Your campus order, made easy." : demoMode ? "Use the temporary code shown here; demo orders go to the live kitchen queue." : "We’ll send a code once. This device stays signed in for 180 days."}</p></div><button className="cx-close" disabled={pending || authBusy} onClick={() => setCheckoutOpen(false)} aria-label="Close checkout">×</button></div>
         {!student && authStep === "details" && <form onSubmit={sendCode} className="cx-auth-form">
           <label>CUI registration number<input required autoComplete="username" maxLength={30} placeholder="e.g. SP24-BSE-015" pattern="(CIIT/)?(FA|SP)[0-9]{2}-[A-Za-z]{2,4}-[0-9]{3,4}(/ISB)?" value={universityId} onChange={(event) => setUniversityId(event.target.value.toUpperCase())}/><small>Use your CUI format: FA or SP, batch year, program and roll number.</small></label>
           <label>Name for pickup<input required autoComplete="name" minLength={2} maxLength={60} placeholder="Your full name" value={name} onChange={(event) => setName(event.target.value.replace(/[^\p{L} ]/gu, ""))}/><small>Letters and spaces only.</small></label>
-          <label>Email address<input required type="email" autoComplete="email" maxLength={254} placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value.trim())}/><small>Use an inbox you can open right now.</small></label>
+          <label>Email address<input required type="email" autoComplete="email" maxLength={254} placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value.trim())}/><small>{demoMode ? "Temporary demo login; no verification email is sent." : "Use an inbox you can open right now."}</small></label>
           {authNotice && <p className="cx-form-notice" role="status">{authNotice}</p>}
-          <button disabled={authBusy} className="cx-checkout-button">{authBusy ? "Sending your code…" : "Email me a verification code"}<Icon name="arrow"/></button>
-          <p className="cx-privacy-note">Your device is remembered in a secure, private cookie. A new device needs email verification. The code confirms email access; CUI enrollment is not checked against campus records.</p>
-          <div className="cx-login-demo"><span>Just exploring CanteenX?</span><a href="/demo">Try the student demo <Icon name="arrow" size={15}/></a><small>No email login needed · sample order only</small></div>
+          <button disabled={authBusy} className="cx-checkout-button">{authBusy ? "Preparing your code…" : demoMode ? "Get temporary demo code" : "Email me a verification code"}<Icon name="arrow"/></button>
+          <p className="cx-privacy-note">{demoMode ? "Demo sign-in does not verify enrollment or email ownership. All orders are clearly marked DEMO in the staff queue." : "Your device is remembered in a secure, private cookie. A new device needs email verification. The code confirms email access; CUI enrollment is not checked against campus records."}</p>
+          {!demoMode && <div className="cx-login-demo"><span>Just exploring CanteenX?</span><a href="/demo">Try the student demo <Icon name="arrow" size={15}/></a><small>Temporary code · demo orders appear in the kitchen queue</small></div>}
         </form>}
         {!student && authStep === "code" && <form onSubmit={verifyCode} className="cx-auth-form">
-          <div className="cx-code-hint"><span>✉</span><div><b>Check your inbox</b><small>We sent a six-digit code to {email}.</small></div></div>
+          <div className="cx-code-hint"><span>✉</span><div><b>{demoMode ? "Temporary demo code" : "Check your inbox"}</b><small>{demoMode ? `Use the code below. No email was sent to ${email}.` : `We sent a six-digit code to ${email}.`}</small></div></div>
+          {demoMode && demoCode && <div className="cx-demo-code"><span>ONE-TIME DEMO CODE</span><strong>{demoCode}</strong></div>}
           <label>Verification code<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} placeholder="000000" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}/></label>
           {authNotice && <p className="cx-form-notice" role="status">{authNotice}</p>}
           <button disabled={authBusy || otp.length !== 6} className="cx-checkout-button">{authBusy ? "Verifying…" : "Verify and continue"}<Icon name="arrow"/></button>
-          <button type="button" disabled={authBusy} className="cx-text-button" onClick={() => void resendCode()}>Resend code</button>
+          <button type="button" disabled={authBusy} className="cx-text-button" onClick={() => void resendCode()}>{demoMode ? "Generate another code" : "Resend code"}</button>
           <button type="button" className="cx-text-button" onClick={() => { setAuthStep("details"); setAuthNotice(""); }}>Use another email or CUI ID</button>
         </form>}
         {student && <form onSubmit={submitOrder} className="cx-order-confirm">
-          <div className="cx-verified"><span><Icon name="check"/></span><div><b>Verified student</b><small>{student.name} · this device remembered</small></div></div>
+          <div className="cx-verified"><span><Icon name="check"/></span><div><b>{student.isDemo ? "Demo student" : "Verified student"}</b><small>{student.name} · {student.isDemo ? "demo orders go to the live kitchen" : "this device remembered"}</small></div></div>
           <div className="cx-order-summary">{cartItems.map((item) => <div key={item.id}><span>{cart[item.id]} × {item.name}</span><b>{money(item.price * cart[item.id])}</b></div>)}{discount > 0 && <div className="cx-summary-discount"><span>Study break combo</span><b>−{money(discount)}</b></div>}<div className="cx-summary-total"><span>Total · cash on pickup</span><b>{money(total)}</b></div></div>
           {notice && <p className="cx-form-notice error" role="alert">{notice}</p>}
           <button disabled={pending || !quantity} className="cx-checkout-button">{pending ? "Sending to the kitchen…" : "Place order · cash on pickup"}<Icon name="arrow"/></button>

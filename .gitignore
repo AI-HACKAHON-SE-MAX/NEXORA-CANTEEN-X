@@ -1,0 +1,59 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-store/
+dist/
+.next/
+.expo/
+.vercel/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# Flutter / Dart / Android / iOS
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+.gradle/
+local.properties
+*.iml
+ios/Pods/
+*.jks
+*.keystore
+
+# Java
+target/
+*.class
+
+# Databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Logs and coverage
+*.log
+coverage/
+htmlcov/
+.coverage
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

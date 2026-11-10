@@ -1,0 +1,19 @@
+# Stack-agnostic CI. Create scripts/test.sh that installs dependencies and runs your tests.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: |
+          if [ ! -f scripts/test.sh ]; then
+            echo "scripts/test.sh not found. Create it to run your tests."
+            exit 1
+          fi
+          bash scripts/test.sh

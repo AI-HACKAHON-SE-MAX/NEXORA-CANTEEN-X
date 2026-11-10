@@ -33,8 +33,8 @@ export function StaffLoginForm() {
   }
 
   return (
-    <form onSubmit={submit} className="mt-8 space-y-4">
-      <label htmlFor="staff-pin" className="block text-sm font-semibold text-stone-700">Staff PIN</label>
+    <form onSubmit={submit} className="cx-staff-auth-form">
+      <label htmlFor="staff-pin">Staff PIN</label>
       <input
         id="staff-pin"
         type="password"
@@ -45,12 +45,12 @@ export function StaffLoginForm() {
         required
         value={pin}
         onChange={(event) => setPin(event.target.value)}
-        className="w-full rounded-xl border border-stone-300 px-4 py-3 text-lg tracking-[0.25em] outline-none focus:border-orange-600 focus:ring-2 focus:ring-orange-100"
+        className="cx-staff-pin"
       />
-      {message && <p role="alert" className="text-sm font-medium text-red-700">{message}</p>}
+      {message && <p role="alert" className="cx-alert cx-alert-error">{message}</p>}
       <button
         disabled={pending}
-        className="w-full rounded-xl bg-orange-700 px-5 py-3 font-bold text-white transition hover:bg-orange-800 disabled:cursor-wait disabled:opacity-60"
+        className="cx-checkout-button"
       >
         {pending ? "Checking…" : "Continue to kitchen"}
       </button>

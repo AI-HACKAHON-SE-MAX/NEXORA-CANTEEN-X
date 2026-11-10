@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { POLL_SECONDS } from "@/lib/config-values";
+import { CanteenHeader } from "@/components/CanteenHeader";
 
 type QueueOrder = {
   id: string;
@@ -150,36 +151,65 @@ export function KitchenDashboard() {
     router.replace("/staff-login");
   }
 
-  return (
-    <main className="min-h-screen bg-[#f5f5f0] text-stone-950">
-      {offline && <div role="status" className="bg-stone-950 px-4 py-2 text-center text-sm font-semibold text-white">Offline · showing the last queue data</div>}
-      <header className="border-b border-stone-200 bg-white"><div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6"><div><a href="/" className="text-lg font-black">Canteen<span className="text-orange-700">X</span></a><span className="ml-3 hidden text-sm font-medium text-stone-500 sm:inline">Kitchen dashboard</span></div><div className="flex items-center gap-2"><a href="/admin" className="min-h-11 rounded-xl px-3 py-2 text-sm font-bold text-stone-700 hover:bg-stone-100">Analytics</a><button onClick={() => void logout()} className="min-h-11 rounded-xl border border-stone-300 px-3 text-sm font-bold">Log out</button></div></div></header>
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[1fr_320px] lg:py-9">
-        <section>
-          <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-700">Live queue</p><h1 className="mt-1 text-3xl font-black">Orders to prepare</h1></div><span className="rounded-full bg-white px-4 py-2 text-sm font-bold text-stone-700">{orders.length + moreCount} active</span></div>
-          {message && <p role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-950">{message}</p>}
-          {loading ? <p className="mt-6 rounded-2xl bg-white p-6 text-stone-600" role="status">Loading the kitchen queue…</p> : orders.length === 0 ? <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-8"><h2 className="text-xl font-extrabold">Queue is clear</h2><p className="mt-2 text-stone-600">New student orders will appear here automatically.</p></div> : (
-            <div className="mt-6 space-y-4">
-              {orders.map((order) => <article key={order.id} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-stone-500">Pickup token</p><p className="mt-1 text-3xl font-black tracking-wider text-orange-800">{order.token}</p></div><div className="text-right"><span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-950">{statusLabels[order.status]}</span><p className="mt-2 text-xs text-stone-500">Received {time(order.createdAt)}</p></div></div>
-                <ul className="mt-5 space-y-2 border-t border-stone-100 pt-4">{order.items.map((item, index) => <li key={`${item.name}-${index}`} className="flex justify-between gap-3 text-sm"><span className="font-semibold">{item.quantity} × {item.name}</span></li>)}</ul>
-                <p className="mt-4 text-sm text-stone-600">Ready-time estimate: <strong className="text-stone-900">{time(order.estimatedReadyAt)}</strong></p>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {order.status === "received" && <button disabled={busy !== null} onClick={() => void changeStatus(order, "preparing")} className="min-h-11 flex-1 rounded-xl bg-orange-700 px-4 font-bold text-white disabled:opacity-50">Start preparing</button>}
-                  {order.status === "preparing" && <><button disabled={busy !== null} onClick={() => void changeStatus(order, "ready")} className="min-h-11 flex-1 rounded-xl bg-emerald-700 px-4 font-bold text-white disabled:opacity-50">Mark ready</button><button disabled={busy !== null} onClick={() => void changeStatus(order, "received")} className="min-h-11 rounded-xl border border-stone-300 px-4 font-bold disabled:opacity-50">Step back</button></>}
-                  {order.status === "ready" && <><button disabled={busy !== null} onClick={() => void changeStatus(order, "picked_up")} className="min-h-11 flex-1 rounded-xl bg-stone-950 px-4 font-bold text-white disabled:opacity-50">Mark picked up</button><button disabled={busy !== null} onClick={() => void changeStatus(order, "preparing")} className="min-h-11 rounded-xl border border-stone-300 px-4 font-bold disabled:opacity-50">Step back</button></>}
-                </div>
-              </article>)}
-              {moreCount > 0 && <p className="rounded-xl bg-stone-200 p-3 text-center text-sm font-semibold text-stone-700">{moreCount} more active order{moreCount === 1 ? "" : "s"} not shown.</p>}
-            </div>
-          )}
-        </section>
+  const receivedCount = orders.filter((order) => order.status === "received").length;
+  const preparingCount = orders.filter((order) => order.status === "preparing").length;
+  const readyCount = orders.filter((order) => order.status === "ready").length;
 
-        <aside className="h-fit rounded-2xl border border-stone-200 bg-white p-5 sm:p-6">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-700">Menu control</p><h2 className="mt-1 text-xl font-black">Stock status</h2><p className="mt-2 text-sm text-stone-600">Turning an item off only affects new orders.</p>
-          <div className="mt-4 divide-y divide-stone-100">{stock.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 py-3"><div><p className="text-sm font-bold">{item.name}</p><p className="text-xs text-stone-500">{item.isAvailable ? "Available" : "Out of stock"}</p></div><button disabled={busy !== null} onClick={() => void toggleStock(item)} className={`min-h-11 rounded-xl px-3 text-xs font-bold disabled:opacity-50 ${item.isAvailable ? "border border-stone-300 text-stone-700" : "bg-orange-700 text-white"}`}>{item.isAvailable ? "Mark out" : "Mark in stock"}</button></div>)}</div>
-        </aside>
-      </div>
+  return (
+    <main className="cx-page cx-ops-page">
+      {offline && <div role="status" className="cx-offline">Offline · showing the last queue data</div>}
+      <CanteenHeader links={[{ href: "/kitchen", label: "Kitchen", active: true }, { href: "/admin", label: "Analytics" }]} actionLabel="Log out" onAction={() => void logout()} />
+      <section className="cx-ops-shell">
+        <div className="cx-ops-heading">
+          <div><span className="cx-eyebrow">CANTEEN OPERATIONS</span><h1>Kitchen queue<span>.</span></h1><p>Keep orders moving from receipt to pickup.</p></div>
+          <div className="cx-queue-count"><strong>{orders.length + moreCount}</strong><span>active orders</span></div>
+        </div>
+
+        <div className="cx-queue-summary" aria-label="Queue status summary">
+          <QueueCount label="New" count={receivedCount} tone="orange" />
+          <QueueCount label="Preparing" count={preparingCount} tone="gold" />
+          <QueueCount label="Ready" count={readyCount} tone="green" />
+        </div>
+
+        {message && <p role="status" className="cx-alert cx-alert-warm">{message}</p>}
+        <div className="cx-kitchen-layout">
+          <section className="cx-queue-section" aria-labelledby="queue-title">
+            <div className="cx-panel-heading cx-queue-heading"><div><span className="cx-eyebrow">LIVE QUEUE</span><h2 id="queue-title">Orders to prepare</h2></div><span className="cx-panel-badge">Auto-updates</span></div>
+            {loading ? <div className="cx-loading-panel" role="status"><span className="cx-spinner" />Loading the kitchen queue…</div> : orders.length === 0 ? <div className="cx-queue-empty"><span className="cx-empty-icon" aria-hidden="true">✓</span><h3>All caught up.</h3><p>New student orders will appear here automatically.</p></div> : (
+              <div className="cx-queue-list">
+                {orders.map((order) => <article key={order.id} className={`cx-kitchen-order cx-kitchen-${order.status}`}>
+                  <div className="cx-kitchen-order-head"><div><p className="cx-order-caption">Pickup token</p><p className="cx-kitchen-token">{order.token}</p></div><div className="cx-kitchen-status-block"><span className={`cx-status-badge ${order.status}`}>{statusLabels[order.status]}</span><small>Received {time(order.createdAt)}</small></div></div>
+                  <div className="cx-kitchen-items"><p>Order items</p><ul>{order.items.map((item, index) => <li key={`${item.name}-${index}`}><span>{item.quantity} ×</span><strong>{item.name}</strong></li>)}</ul></div>
+                  <div className="cx-kitchen-order-bottom"><div className="cx-kitchen-estimate"><span>Estimated ready</span><strong>{time(order.estimatedReadyAt)}</strong></div><div className="cx-kitchen-actions">
+                    {order.status === "received" && <button disabled={busy !== null} onClick={() => void changeStatus(order, "preparing")} className="cx-action-button primary">Start preparing <ArrowIcon /></button>}
+                    {order.status === "preparing" && <><button disabled={busy !== null} onClick={() => void changeStatus(order, "ready")} className="cx-action-button ready">Mark ready <CheckIcon /></button><button disabled={busy !== null} onClick={() => void changeStatus(order, "received")} className="cx-action-button secondary">Step back</button></>}
+                    {order.status === "ready" && <><button disabled={busy !== null} onClick={() => void changeStatus(order, "picked_up")} className="cx-action-button picked">Mark picked up <CheckIcon /></button><button disabled={busy !== null} onClick={() => void changeStatus(order, "preparing")} className="cx-action-button secondary">Step back</button></>}
+                  </div></div>
+                </article>)}
+                {moreCount > 0 && <p className="cx-more-orders">{moreCount} more active order{moreCount === 1 ? "" : "s"} not shown.</p>}
+              </div>
+            )}
+          </section>
+
+          <aside className="cx-stock-panel">
+            <div className="cx-panel-heading"><div><span className="cx-eyebrow">MENU CONTROL</span><h2>Stock status</h2><p>Changes affect new orders only.</p></div><span className="cx-stock-count">{stock.filter((item) => item.isAvailable).length}/{stock.length}</span></div>
+            {stock.length === 0 && loading ? <div className="cx-stock-loading"><span className="cx-spinner" />Loading menu…</div> : <div className="cx-stock-list">{stock.map((item) => <div key={item.id} className="cx-stock-row"><div><strong>{item.name}</strong><span className={item.isAvailable ? "available" : "unavailable"}><i />{item.isAvailable ? "Available" : "Out of stock"}</span></div><button disabled={busy !== null} onClick={() => void toggleStock(item)} className={`cx-stock-toggle ${item.isAvailable ? "on" : "off"}`} aria-label={`${item.isAvailable ? "Mark out of stock" : "Mark in stock"}: ${item.name}`} aria-pressed={item.isAvailable}><span /></button></div>)}</div>}
+          </aside>
+        </div>
+        <p className="cx-ops-footnote">Status updates are shared with students tracking their order.</p>
+      </section>
     </main>
   );
+}
+
+function QueueCount({ label, count, tone }: { label: string; count: number; tone: "orange" | "gold" | "green" }) {
+  return <div className="cx-queue-count-card"><span className={`cx-queue-count-dot ${tone}`} /><div><strong>{count}</strong><span>{label}</span></div></div>;
+}
+
+function ArrowIcon() {
+  return <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>;
+}
+
+function CheckIcon() {
+  return <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg>;
 }

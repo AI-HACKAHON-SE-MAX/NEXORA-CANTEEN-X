@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CanteenHeader } from "@/components/CanteenHeader";
 
 type Analytics = {
   day: string;
@@ -50,32 +51,58 @@ export function AdminDashboard() {
     router.replace("/staff-login");
   }
 
+  const peakHour = Math.max(1, ...(data?.ordersPerHour ?? []).map((row) => row.count));
+
   return (
-    <main className="min-h-screen bg-[#f5f5f0] text-stone-950">
-      <header className="border-b border-stone-200 bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6"><div><a href="/" className="text-lg font-black">Canteen<span className="text-orange-700">X</span></a><span className="ml-3 hidden text-sm font-medium text-stone-500 sm:inline">Today’s analytics</span></div><div className="flex items-center gap-2"><a href="/kitchen" className="min-h-11 rounded-xl px-3 py-2 text-sm font-bold text-stone-700 hover:bg-stone-100">Kitchen</a><button onClick={() => void logout()} className="min-h-11 rounded-xl border border-stone-300 px-3 text-sm font-bold">Log out</button></div></div></header>
-      <section className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-10">
-        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-700">Admin overview</p><h1 className="mt-1 text-3xl font-black">Today at the canteen</h1>{data && <p className="mt-2 text-sm text-stone-500">Karachi date · {data.day}</p>}</div><button onClick={() => void refresh()} className="min-h-11 rounded-xl border border-stone-300 bg-white px-4 text-sm font-bold">Refresh</button></div>
-        {error && <p role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-900">{error}</p>}
-        {loading ? <p className="mt-6 rounded-2xl bg-white p-6 text-stone-600" role="status">Loading today’s numbers…</p> : data && <>
-          {data.ordersTotal === 0 && <p className="mt-6 rounded-xl bg-amber-100 p-4 text-sm font-semibold text-amber-950">No orders yet today.</p>}
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label="Orders today" value={String(data.ordersTotal)} />
-            <Metric label="Picked up" value={String(data.completedCount)} />
-            <Metric label="Cash revenue" value={money(data.revenue)} />
-            <Metric label="Top item" value={data.topItem ? `${data.topItem.name} · ${data.topItem.quantity}` : "No data"} />
-            <Metric label="Cancelled" value={String(data.cancelledCount)} />
-            <Metric label="Expired" value={String(data.expiredCount)} />
-            <Metric label="Average prep" value={data.avgActualPrepMinutes === null ? "No data" : `${data.avgActualPrepMinutes} min`} />
-            <Metric label="Estimate error" value={data.estimateAccuracy === null ? "No data" : `${data.estimateAccuracy} min MAE`} />
+    <main className="cx-page cx-ops-page">
+      <CanteenHeader links={[{ href: "/kitchen", label: "Kitchen" }, { href: "/admin", label: "Analytics", active: true }]} actionLabel="Log out" onAction={() => void logout()} />
+      <section className="cx-ops-shell">
+        <div className="cx-ops-heading">
+          <div><span className="cx-eyebrow">DAILY SNAPSHOT</span><h1>Today at the canteen<span>.</span></h1><p>{data ? `Karachi date · ${data.day}` : "Sales, service, and preparation at a glance."}</p></div>
+          <button onClick={() => void refresh()} className="cx-secondary-button" disabled={loading}><RefreshIcon />{loading ? "Refreshing…" : "Refresh numbers"}</button>
+        </div>
+        {error && <p role="alert" className="cx-alert cx-alert-error">{error}</p>}
+        {loading && !data ? <div className="cx-loading-panel" role="status"><span className="cx-spinner" />Loading today’s numbers…</div> : data && <>
+          {data.ordersTotal === 0 && <div className="cx-alert cx-alert-warm"><strong>A fresh start.</strong><span>No orders have been placed today yet.</span></div>}
+          <div className="cx-metric-grid">
+            <Metric icon="↗" label="Orders today" value={String(data.ordersTotal)} tone="green" />
+            <Metric icon="✓" label="Picked up" value={String(data.completedCount)} tone="orange" />
+            <Metric icon="₨" label="Cash revenue" value={money(data.revenue)} tone="gold" />
+            <Metric icon="✦" label="Top item" value={data.topItem ? `${data.topItem.name} · ${data.topItem.quantity}` : "No data"} tone="green" />
           </div>
-          <section className="mt-8 rounded-2xl border border-stone-200 bg-white p-5 sm:p-6"><h2 className="text-xl font-black">Orders by hour</h2><p className="mt-1 text-sm text-stone-500">Created today, Pakistan Standard Time (UTC+5).</p><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[520px] border-collapse text-left text-sm"><thead><tr className="border-b border-stone-200 text-stone-500"><th className="py-3 pr-4 font-semibold">Hour</th><th className="py-3 pr-4 font-semibold">Orders</th><th className="py-3 font-semibold">Volume</th></tr></thead><tbody>{data.ordersPerHour.map((row) => <tr key={row.hour} className="border-b border-stone-100 last:border-0"><td className="py-2.5 pr-4">{String(row.hour).padStart(2, "0")}:00</td><td className="py-2.5 pr-4">{row.count}</td><td className="py-2.5"><div className="h-2 rounded-full bg-amber-100"><div className="h-2 rounded-full bg-orange-700" style={{ width: `${data.ordersTotal ? Math.min(100, (row.count / data.ordersTotal) * 100) : 0}%` }} /></div></td></tr>)}</tbody></table></div></section>
-          <p className="mt-4 text-xs text-stone-500">Estimate error is mean absolute error against the displayed estimate. Prep and accuracy values are historical measures, not promises.</p>
+          <div className="cx-admin-content-grid">
+            <section className="cx-panel cx-hour-panel">
+              <div className="cx-panel-heading"><div><span className="cx-eyebrow">TRAFFIC</span><h2>Orders by hour</h2><p>Created today · Pakistan Standard Time</p></div><span className="cx-panel-badge">{data.ordersTotal} total</span></div>
+              {data.ordersTotal === 0 ? <div className="cx-chart-empty">Hourly activity will appear here as orders come in.</div> : <div className="cx-hour-chart" role="img" aria-label="Orders by hour in Pakistan Standard Time">
+                {data.ordersPerHour.map((row) => <div className="cx-hour-bar-column" key={row.hour} title={`${String(row.hour).padStart(2, "0")}:00 · ${row.count} orders`}><div className="cx-hour-bar-track"><div className="cx-hour-bar" style={{ height: `${Math.max(row.count ? 7 : 0, (row.count / peakHour) * 100)}%` }} /></div><span>{row.hour % 3 === 0 ? String(row.hour).padStart(2, "0") : ""}</span></div>)}
+              </div>}
+              <div className="cx-chart-legend"><span><i /> Orders per hour</span><small>Local campus time · UTC+5</small></div>
+            </section>
+            <section className="cx-panel cx-service-panel">
+              <div className="cx-panel-heading"><div><span className="cx-eyebrow">SERVICE CHECK</span><h2>Today’s operations</h2></div></div>
+              <div className="cx-service-list">
+                <ServiceMetric label="Cancelled" value={String(data.cancelledCount)} detail="Customer or staff cancellations" />
+                <ServiceMetric label="Expired" value={String(data.expiredCount)} detail="Uncollected orders" />
+                <ServiceMetric label="Average prep" value={data.avgActualPrepMinutes === null ? "—" : `${data.avgActualPrepMinutes} min`} detail="Measured from live orders" />
+                <ServiceMetric label="Estimate error" value={data.estimateAccuracy === null ? "—" : `${data.estimateAccuracy} min`} detail="Mean absolute error" />
+              </div>
+            </section>
+          </div>
+          <p className="cx-ops-footnote">Prep and estimate accuracy are historical measures from completed orders. Queue-time figures are estimates, not promises.</p>
         </>}
       </section>
     </main>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return <article className="min-h-28 rounded-2xl border border-stone-200 bg-white p-4"><p className="text-xs font-bold uppercase tracking-wide text-stone-500">{label}</p><p className="mt-3 text-xl font-black leading-tight sm:text-2xl">{value}</p></article>;
+function Metric({ icon, label, value, tone }: { icon: string; label: string; value: string; tone: "green" | "orange" | "gold" }) {
+  return <article className="cx-metric-card"><span className={`cx-metric-icon ${tone}`}>{icon}</span><div><p>{label}</p><strong>{value}</strong></div></article>;
+}
+
+function ServiceMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return <div className="cx-service-row"><div><strong>{label}</strong><span>{detail}</span></div><b>{value}</b></div>;
+}
+
+function RefreshIcon() {
+  return <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7v5h-5M4 17v-5h5" /><path d="M5.6 9A7 7 0 0 1 18 6l2 2M4 16l2 2a7 7 0 0 0 12.4-3" /></svg>;
 }

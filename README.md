@@ -13,9 +13,9 @@ CanteenX lets students order from the campus canteen before they arrive, then tr
 
 ## Judge quick start
 
-1. Open the deployed URL after applying the updated `supabase/schema.sql` and setting `RESEND_API_KEY` plus `STUDENT_OTP_FROM` in Vercel.
-2. Add a menu item, sign in with a CUI-style registration number and an email inbox you can access, then enter the emailed code.
-3. Show the pickup token on `/order`; in another browser, sign in at `/staff-login` and move the order through the kitchen queue.
+1. For a service-free walkthrough, open `/demo`. Its student checkout, kitchen queue, and analytics use sample data only; actions stay in the browser and never call live APIs.
+2. For a live demo, apply the updated `supabase/schema.sql` and set `RESEND_API_KEY` plus a verified `STUDENT_OTP_FROM` sender in Vercel.
+3. Sign in with a CUI-style registration number and an email inbox you can access, then enter the emailed code. Show the pickup token on `/order`; staff can sign in at `/staff-login` and move the order through the queue.
 
 ## Run locally
 

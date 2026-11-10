@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { POLL_SECONDS } from "@/lib/config-values";
+import { CanteenHeader } from "@/components/CanteenHeader";
 
 type SavedOrder = { id: string; key: string; token: string; createdAt: string; status?: string };
 type OrderDetails = {
@@ -77,25 +78,32 @@ export function MyOrders() {
     };
   }, []);
 
-  if (!loaded) return <main className="min-h-screen bg-[#fffaf2] p-6" role="status">Loading your orders…</main>;
+  if (!loaded) return <main className="cx-page cx-orders-page"><div className="cx-loading-panel" role="status"><span className="cx-spinner" />Loading your orders…</div></main>;
   return (
-    <main className="min-h-screen bg-[#fffaf2] text-stone-950">
-      {offline && <div role="status" className="bg-stone-900 px-4 py-2 text-center text-sm font-semibold text-white">You're offline. Showing saved order details.</div>}
-      <header className="border-b border-amber-100 bg-white"><div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4 sm:px-6"><a href="/" className="text-xl font-black">Canteen<span className="text-orange-700">X</span></a><a href="/" className="min-h-11 rounded-full px-4 py-2 text-sm font-bold text-stone-700 hover:bg-amber-100">Back to menu</a></div></header>
-      <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-12">
-        <p className="text-sm font-bold uppercase tracking-[0.15em] text-orange-700">Pickup tracker</p>
-        <h1 className="mt-1 text-3xl font-black sm:text-4xl">My orders</h1>
-        <p className="mt-3 max-w-xl text-stone-600">Keep this page open to see updates. Show your pickup token to the counter staff.</p>
+    <main className="cx-page cx-orders-page">
+      {offline && <div role="status" className="cx-offline">You’re offline. Showing saved order details.</div>}
+      <CanteenHeader links={[{ href: "/", label: "Menu" }, { href: "/order", label: "My orders", active: true }]} />
+      <section className="cx-orders-shell">
+        <div className="cx-orders-heading">
+          <div><span className="cx-eyebrow">PICKUP TRACKER</span><h1>My orders<span>.</span></h1><p>Keep this page open for live updates. Show your pickup token at the counter.</p></div>
+          <div className="cx-live-pill"><i /> Live updates <b>every {POLL_SECONDS}s</b></div>
+        </div>
         {orders.length === 0 ? (
-          <div className="mt-7 rounded-2xl border border-amber-100 bg-white p-6 text-stone-700">
-            <p className="font-semibold">No orders are saved on this device.</p>
-            <p className="mt-2 text-sm text-stone-600">If you placed an order on another device or cleared browser storage, show your pickup token to the counter staff.</p>
-            <a href="/" className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-orange-700 px-4 font-bold text-white">Browse menu</a>
+          <div className="cx-orders-empty">
+            <span className="cx-empty-icon" aria-hidden="true">✦</span>
+            <h2>No orders on this device yet.</h2>
+            <p>If you ordered on another device or cleared browser storage, show your pickup token to the counter staff.</p>
+            <a href="/" className="cx-primary-link">Browse today’s menu <ArrowIcon /></a>
           </div>
-        ) : <div className="mt-7 space-y-5">{orders.map((order) => <OrderCard key={order.id} order={order} />)}</div>}
+        ) : <div className="cx-orders-list">{orders.map((order) => <OrderCard key={order.id} order={order} />)}</div>}
+        <p className="cx-orders-footnote">Your tracking key stays in this browser. Pickup tokens are labels, so keep yours private until pickup.</p>
       </section>
     </main>
   );
+}
+
+function ArrowIcon() {
+  return <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>;
 }
 
 function OrderCard({ order }: { order: SavedOrder }) {
@@ -193,36 +201,37 @@ function OrderCard({ order }: { order: SavedOrder }) {
     }
   }
 
-  if (missing) return <article className="rounded-2xl border border-amber-200 bg-white p-6" role="alert"><p className="font-bold">Order {order.token}</p><p className="mt-2 text-sm text-stone-600">We can't find this order on this device. Show your token to the counter staff.</p></article>;
+  if (missing) return <article className="cx-order-card cx-order-missing" role="alert"><p className="cx-order-caption">Pickup token</p><p className="cx-order-token">{order.token}</p><p>We can’t find this order on this device. Show the token to the counter staff.</p></article>;
   const status = details?.status ?? (order.status as OrderDetails["status"] | undefined);
   const index = status ? stages.indexOf(status) : -1;
   const remainingMs = details?.estimatedReadyAt ? new Date(details.estimatedReadyAt).getTime() - (tick + offset) : null;
+  const itemCount = details?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
   const isLate = remainingMs !== null && remainingMs <= 0 && status !== "ready";
 
   return (
-    <article className="rounded-2xl border border-amber-100 bg-white p-5 shadow-[0_3px_20px_rgba(60,40,10,0.04)] sm:p-7">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div><p className="text-xs font-bold uppercase tracking-[0.15em] text-stone-500">Pickup token</p><p className="mt-1 text-4xl font-black tracking-wider text-orange-800">{order.token}</p><p className="mt-2 text-sm font-semibold" aria-live="polite">{status ? labels[status] : "Checking status…"}</p></div>
-        {details && <div className="rounded-xl bg-amber-50 px-4 py-3 text-right"><p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Ready-time estimate</p><p className="mt-1 text-lg font-extrabold text-stone-900">{status === "ready" ? "Ready now" : terminal.has(status ?? "") ? "—" : isLate ? "Any moment now" : (details.estimatedMinutes ?? 0) >= 60 ? "60+ minutes" : `About ${details.estimatedMinutes} min`}</p>{remainingMs !== null && remainingMs > 0 && remainingMs < 60 * 60_000 && status !== "ready" && !terminal.has(status ?? "") && <p className="mt-1 text-xs text-stone-500">~{Math.ceil(remainingMs / 60_000)} min remaining</p>}</div>}
+    <article className={`cx-order-card${status === "ready" ? " is-ready" : ""}`}>
+      <div className="cx-order-card-head">
+        <div><p className="cx-order-caption">Pickup token</p><p className="cx-order-token">{order.token}</p><p className="cx-order-status" aria-live="polite"><i className={`cx-status-dot ${status ?? "pending"}`} />{status ? labels[status] : "Checking status…"}</p></div>
+        {details && <div className="cx-order-eta"><p>Ready-time estimate</p><strong>{status === "ready" ? "Ready now" : terminal.has(status ?? "") ? "—" : isLate ? "Any moment now" : (details.estimatedMinutes ?? 0) >= 60 ? "60+ minutes" : `About ${details.estimatedMinutes} min`}</strong>{remainingMs !== null && remainingMs > 0 && remainingMs < 60 * 60_000 && status !== "ready" && !terminal.has(status ?? "") && <span>~{Math.ceil(remainingMs / 60_000)} min remaining</span>}</div>}
       </div>
 
-      {status && !terminal.has(status) && <ol className="mt-7 grid grid-cols-4 gap-2" aria-label="Order progress">
+      {status && !terminal.has(status) && <ol className="cx-order-progress" aria-label="Order progress">
         {stages.map((stage, stageIndex) => {
           const complete = index >= stageIndex;
-          return <li key={stage} className="text-center"><div className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs font-black ${complete ? "bg-orange-700 text-white" : "bg-stone-100 text-stone-500"}`}>{complete ? "✓" : stageIndex + 1}</div><p className={`mt-2 text-[11px] font-semibold sm:text-xs ${complete ? "text-stone-900" : "text-stone-500"}`}>{labels[stage]}</p></li>;
+          return <li key={stage} className={complete ? stageIndex < index ? "complete passed" : "complete" : ""}><div>{complete ? "✓" : stageIndex + 1}</div><p>{labels[stage]}</p></li>;
         })}
       </ol>}
 
       {details && <>
-        <div className="mt-6 border-t border-stone-100 pt-4">
-          <h2 className="text-sm font-bold text-stone-700">Your items</h2>
-          <ul className="mt-2 space-y-2 text-sm">{details.items.map((item, itemIndex) => <li key={`${item.name}-${itemIndex}`} className="flex justify-between gap-3"><span>{item.quantity} × {item.name}</span><span className="text-stone-600">{itemIndex === 0 ? money(details.total) : ""}</span></li>)}</ul>
-          <p className="mt-3 text-xs text-stone-500">Pay {money(details.total)} in cash at pickup.</p>
+        <div className="cx-order-items">
+          <div className="cx-order-items-title"><h2>Your items</h2><span>{itemCount} {itemCount === 1 ? "item" : "items"}</span></div>
+          <ul>{details.items.map((item, itemIndex) => <li key={`${item.name}-${itemIndex}`}><span>{item.quantity} × {item.name}</span></li>)}</ul>
+          <div className="cx-order-total"><span>Total due at pickup</span><strong>{money(details.total)}</strong></div>
         </div>
-        {status === "received" && <button disabled={cancelling} onClick={() => void cancel()} className="mt-5 min-h-11 rounded-xl border border-red-200 px-4 font-bold text-red-800 hover:bg-red-50 disabled:opacity-60">{cancelling ? "Cancelling…" : "Cancel order"}</button>}
+        {status === "received" && <button disabled={cancelling} onClick={() => void cancel()} className="cx-danger-button">{cancelling ? "Cancelling…" : "Cancel order"}</button>}
       </>}
-      {message && <p role="status" className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">{message}</p>}
-      {!details && !message && <p className="mt-5 text-sm text-stone-500" role="status">Checking for an update…</p>}
+      {message && <p role="status" className="cx-inline-notice">{message}</p>}
+      {!details && !message && <p className="cx-order-loading" role="status"><span className="cx-spinner" />Checking for an update…</p>}
     </article>
   );
 }

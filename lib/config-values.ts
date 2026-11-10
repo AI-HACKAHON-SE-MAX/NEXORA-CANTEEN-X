@@ -1,0 +1,27 @@
+// Pure constants shared by server code and UI; re-exported by server-only lib/config.ts.
+export const MAX_ACTIVE_PER_ID = 2;
+export const MAX_LINES = 10;
+export const MAX_QTY_PER_LINE = 10;
+export const MAX_TOTAL_QTY = 20;
+export const NAME_LEN = { min: 2, max: 60 } as const;
+export const ID_LEN = { min: 3, max: 30 } as const;
+export const ID_CHARSET = /^[A-Za-z0-9\-_/]+$/;
+export const BODY_LIMIT = 10 * 1024;
+export const ORDER_RATE = { requests: 10, windowSeconds: 10 * 60, perId: 5 } as const;
+export const PIN_RATE = { perIp: 5, global: 30, windowSeconds: 10 * 60 } as const;
+export const POLL_RATE = { requests: 30, windowSeconds: 60 } as const;
+export const ACTIVE_MAX_MINUTES = 45;
+export const READY_UNCOLLECTED_MINUTES = 15;
+export const SESSION_HOURS = 8;
+export const POLL_SECONDS = 5;
+export const TIMEZONE = "Asia/Karachi";
+export const KITCHEN_STATIONS = 2;
+export const DEFAULT_PREP_MIN = 3;
+export const BATCH_FACTOR = 0.5;
+export const PREPARING_REMAINING_FACTOR = 0.5;
+export const CALIBRATION_SAMPLE = 10;
+export const CALIBRATION_WINDOW_MINUTES = 60;
+export const MIN_CALIBRATION_SAMPLES = 5;
+export const RATIO_CLAMP = { min: 0.5, max: 2 } as const;
+export const FACTOR_CLAMP = { min: 0.8, max: 1.5 } as const;
+export const DISPLAY_CAP_MINUTES = 60;

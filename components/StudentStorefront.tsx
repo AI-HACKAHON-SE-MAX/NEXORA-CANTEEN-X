@@ -282,7 +282,7 @@ export function StudentStorefront() {
         <div className="cx-header-inner">
           <a href="/" className="cx-brand" aria-label="CanteenX home"><span className="cx-brand-mark">C</span><span>Canteen<span className="cx-brand-x">X</span><small>CUI ISLAMABAD</small></span></a>
           <nav className="cx-nav" aria-label="Main navigation">
-            <a className="cx-nav-link" href="#menu">Menu</a><a className="cx-nav-link" href="/order">My orders</a>
+            <a className="cx-nav-link" href="#menu">Menu</a><a className="cx-nav-link" href="/order">My orders</a><a className="cx-nav-link" href="/demo">Demo</a>
             <button className="cx-icon-button" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}><Icon name={theme === "light" ? "moon" : "sun"}/></button>
             {student ? <button className="cx-profile" onClick={() => void signOut()} title="Sign out">{student.name.split(" ")[0]} <span>· Sign out</span></button> : <button className="cx-signin" onClick={() => { setCheckoutOpen(true); setAuthStep("details"); }}>Sign in</button>}
             <button className="cx-cart-button" onClick={() => setDrawerOpen(true)} aria-label={`Open bag, ${quantity} items`}><Icon name="cart"/><span>Bag</span><b aria-live="polite">{quantity}</b></button>
@@ -348,6 +348,7 @@ export function StudentStorefront() {
           {authNotice && <p className="cx-form-notice" role="status">{authNotice}</p>}
           <button disabled={authBusy} className="cx-checkout-button">{authBusy ? "Sending your code…" : "Email me a verification code"}<Icon name="arrow"/></button>
           <p className="cx-privacy-note">Your device is remembered in a secure, private cookie. A new device needs email verification. The code confirms email access; CUI enrollment is not checked against campus records.</p>
+          <div className="cx-login-demo"><span>Just exploring CanteenX?</span><a href="/demo">Try the student demo <Icon name="arrow" size={15}/></a><small>No email login needed · sample order only</small></div>
         </form>}
         {!student && authStep === "code" && <form onSubmit={verifyCode} className="cx-auth-form">
           <div className="cx-code-hint"><span>✉</span><div><b>Check your inbox</b><small>We sent a six-digit code to {email}.</small></div></div>

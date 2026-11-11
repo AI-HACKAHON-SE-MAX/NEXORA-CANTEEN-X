@@ -1,21 +1,23 @@
 # CanteenX
 
-> AI-Powered SE-MAX · CUI Tech Fest FA'26 · Team NEXORA
+> Campus canteen ordering and queue management · CUI Islamabad · Team NEXORA
 
-CanteenX lets students order from the campus canteen before they arrive, then track preparation and pickup with a short token. The kitchen team manages the live queue and item availability; staff can review daily operations in the admin view.
+CanteenX lets students order from the campus canteen before they arrive, then track preparation and pickup with a short token. The kitchen team manages the live queue and item availability; staff can review daily operations in the admin view. See [PRODUCT_OVERVIEW.md](PRODUCT_OVERVIEW.md) for the product summary, architecture, identity limits, and capacity status.
 
 ## Current build status
 
-- The Next.js app, order and staff API routes, Supabase schema/seed scripts, and mobile-first student and kitchen screens are in the repository.
-- **Deployment:** the app is hosted on Vercel; production student email sign-in requires the Supabase auth tables and Resend sender settings below.
-- **Verified here:** `npm run build` and `npm run security:check` pass.
-- **Not yet verified:** applying the Supabase SQL, live database flows, phone/browser manual QA, and automated unit/API tests.
+- **Deployment:** <https://nexora-canteen-x-seven.vercel.app>
+- **Student demo:** `/demo` uses the live menu and order pipeline with a temporary server-issued code. Demo orders appear in the live kitchen queue with a `DEMO` label and are excluded from sales/prep-time metrics.
+- **Verified:** demo sign-in, order creation, tracking, and cancellation were smoke-tested against the deployed app; TypeScript and `npm run security:check` pass.
+- **Capacity:** not load-tested. Do not claim a guaranteed concurrent-user limit; see the capacity section in [PRODUCT_OVERVIEW.md](PRODUCT_OVERVIEW.md).
+- Regular student email OTP requires the Supabase account tables from `supabase/schema.sql` and configured Resend sender settings.
 
 ## Judge quick start
 
-1. For a service-free walkthrough, open `/demo`. Its student checkout, kitchen queue, and analytics use sample data only; actions stay in the browser and never call live APIs.
-2. For a live demo, apply the updated `supabase/schema.sql` and set `RESEND_API_KEY` plus a verified `STUDENT_OTP_FROM` sender in Vercel.
-3. Sign in with a CUI-style registration number and an email inbox you can access, then enter the emailed code. Show the pickup token on `/order`; staff can sign in at `/staff-login` and move the order through the queue.
+1. Open `/demo` for the end-to-end temporary student demo. Enter a CUI-style registration number, name, and any syntactically valid email, request the temporary code shown on screen, then place and track a clearly marked demo order.
+2. The live Supabase project must have `supabase/migrations/20261110_demo_orders.sql` applied for demo orders. For a fresh project, apply `supabase/schema.sql` and `supabase/seed.sql` instead.
+3. Demo orders appear in the staff kitchen queue with a `DEMO` label. Staff sign in at `/staff-login` and move the order through the queue as usual. Demo mode does not send email or verify CUI enrollment.
+4. Regular students use the homepage checkout and receive an emailed OTP when Supabase auth tables and Resend are configured.
 
 ## Run locally
 
@@ -79,8 +81,10 @@ For each cart line, preparation work is `base + (quantity - 1) × base × 0.5`, 
 
 ## Documentation
 
+- [Product overview, architecture, and capacity](PRODUCT_OVERVIEW.md)
 - [Requirements](docs/requirements.md)
 - [Design](docs/design.md)
 - [Testing status](docs/testing.md)
+- [Judge check map](docs/judge-checks.md)
 - [AI usage log](docs/ai-usage-log.md)
 - [Submission checklist](SUBMISSION.md)

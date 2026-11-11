@@ -1,29 +1,34 @@
-# Testing status
+# Testing and Verification Status
 
-## Commands run
+## Automated checks
 
-| Check | Result | Notes |
+| Check | Latest known result | Notes |
 |---|---|---|
-| `npm run build` | PASS | Next.js production build and strict TypeScript check passed locally on 2026-11-10. |
+| `npx tsc --noEmit --pretty false` | PASS | TypeScript completed without errors after the live-demo integration. |
 | `npm run security:check` | PASS | Source scan found no public server-secret variables. This is a narrow source scan, not a full security audit. |
-| `git diff --check` | PASS | No whitespace errors were reported. |
-| CUI ID/name validation | Implemented | Accepts FA/SP CUI registration patterns; names are letters and spaces. |
-| Email OTP/device session | Implemented in source | Requires updated Supabase schema and Resend deployment settings before live verification. |
-| Photo menu/theme/cart interactions | Implemented in source | Remote image hosts and mobile visual layout still need browser QA. |
-| Automated unit/API tests | NOT RUN | Test files and Vitest setup have not been added. |
-| Supabase integration/manual QA | NOT RUN | Updated SQL and Resend sender have not been configured for this code revision; the existing Vercel release was not changed. |
+| `git diff --check` | PASS | No whitespace errors on the implementation changes. |
+| Automated unit/API suite | NOT CONFIGURED | No unit/API test runner is configured. |
+| Concurrent-user/load test | NOT RUN | Capacity is not measured; see [PRODUCT_OVERVIEW.md](../PRODUCT_OVERVIEW.md). |
 
-## Before demo
+## Live demo smoke test
 
-1. Apply the updated `supabase/schema.sql` and `supabase/seed.sql` in the Supabase project before deploying these changes.
-2. Configure `RESEND_API_KEY` and `STUDENT_OTP_FROM` in Vercel with a verified sender; set the same values in local `.env.local` for OTP QA.
-3. Configure `.env.local` with demo secrets and generate the staff PIN hash using `npm run make:pin-hash`.
-4. Run `npm run reset:demo`, then start `npm run dev`.
-5. Verify OTP signup, reload on the same device without another code, sign in on a second browser with a fresh code, then place an order and move it through the kitchen statuses.
-6. Repeat with cancellation, wrong/missing order keys, out-of-stock item, stale staff status update, combo pricing, and a third active order for one CUI-style ID.
-7. Check 360px Chrome and Safari layouts, dark/light persistence, offline behavior, cleared storage, expired staff cookie, and two-browser status race.
-8. Run `npm run build` and `npm run security:check` again after any code changes.
+On 2026-11-10, against the deployed CanteenX app:
 
-## Known untested areas
+- Demo auth start and verification succeeded using the temporary server-issued code.
+- A one-item demo order returned HTTP 201.
+- The private order tracker returned `isDemo: true`.
+- The order was cancelled immediately after verification so it did not remain in the active kitchen queue. The cancelled row remains marked as a demo order.
+- The Supabase `orders.is_demo` column was verified present after applying `supabase/migrations/20261110_demo_orders.sql`.
 
-Every database RPC/constraint, OTP email delivery, device-cookie persistence, RLS denial from anon/authenticated, concurrency/race behavior, estimator edge cases, error-response equivalence, staff cookie flags, polling/backoff, 360px phone layout, remote-image availability, analytics tie/empty states, and deployment of this code revision remain unverified. The production URL was not modified during this code pass. No estimate accuracy has been measured from real orders.
+## Before judging
+
+Manually check these scenarios and record the observed results:
+
+1. Try another order's UUID with a missing/wrong `x-order-key`; reads/cancellation should not reveal it.
+2. Try to call staff status routes without a valid staff PIN session; status must not change.
+3. Compare an empty queue, a busy queue, and a step-back in the estimate; values should remain bounded and labeled estimates.
+4. Submit an empty cart, invalid quantities, and a duplicate submit.
+5. Confirm RLS, browser grants, and no public policies directly in the deployed Supabase project.
+6. Check 360px mobile layout, dark/light persistence, offline behavior, expired staff session, and two-staff-device status races.
+
+Regular student OTP email still depends on Supabase student auth tables and Resend sender configuration. The temporary demo code does not send email and does not prove CUI enrollment or email ownership.
